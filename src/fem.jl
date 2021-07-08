@@ -65,9 +65,9 @@ function Base.getproperty(model::FEPileModel, name::Symbol)
         view(U, 1:2:length(U))
     elseif name == :θ
         view(U, 2:2:length(U))
-    elseif name == :f
+    elseif name == :fext
         view(Fext, 1:2:length(Fext))
-    elseif name == :M
+    elseif name == :Mext
         view(Fext, 2:2:length(Fext))
     else
         getfield(model, name)
@@ -105,19 +105,19 @@ function reaction_forces(beam::Beam)
 end
 
 function distributions(model::FEPileModel{T}) where {T}
-    F = T[]
+    f = T[]
     M = T[]
     for i in 1:length(model)
         beam = model[i]
-        F_beam, M_beam = reaction_forces(beam)
-        push!(F, F_beam[1])
+        f_beam, M_beam = reaction_forces(beam)
+        push!(f, f_beam[1])
         push!(M, M_beam[1])
         if i == length(model)
-            push!(F, -F_beam[2])
+            push!(f, -f_beam[2])
             push!(M, -M_beam[2])
         end
     end
-    (; model.u, model.θ, F, M)
+    (; model.u, model.θ, f, M)
 end
 
 function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
@@ -175,8 +175,28 @@ function reset!(model::FEPileModel)
 end
 
 @recipe function f(model::FEPileModel)
-    xguide --> "Lateral displacement"
-    yguide --> "Coordinates"
     label --> ""
-    (model.u, model.coordinates)
+    layout := (1, 4)
+    u, θ, f, M = distributions(model)
+    @series begin
+        subplot := 1
+        xguide --> "Lateral displacement"
+        yguide --> "Coordinates"
+        (u, model.coordinates)
+    end
+    @series begin
+        subplot := 2
+        xguide --> "Angle"
+        (θ, model.coordinates)
+    end
+    @series begin
+        subplot := 3
+        xguide --> "Lateral force"
+        (f, model.coordinates)
+    end
+    @series begin
+        subplot := 4
+        xguide --> "Moment"
+        (M, model.coordinates)
+    end
 end
