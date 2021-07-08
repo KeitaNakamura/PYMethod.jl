@@ -19,7 +19,16 @@ function reset!(x::FEMVector{T}) where {T}
     x
 end
 
-struct FEPileModel{T}
+struct Beam{T}
+    u::FEMVector{T}
+    inds::UnitRange{Int}
+    # constants
+    l::T
+    E::T
+    I::T
+end
+
+struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
     # global vectors and matrix (Ax = b)
     x::FEMVector{T}
@@ -70,12 +79,24 @@ end
 @generated Base.propertynames(model::FEPileModel) =
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :F, :M))
 
+Base.size(model::FEPileModel) = (length(model.coordinates)-1,)
+function Base.getindex(model::FEPileModel, i::Int)
+    @boundscheck checkbounds(model, i)
+    Z = model.coordinates
+    l = Z[i+1] - Z[i]
+    E = mean(model.E[i:i+1])
+    I = mean(model.I[i:i+1])
+    ind = 2(i-1) + 1
+    Beam(model.x, ind:ind+3, abs(l), E, I)
+end
+
 function stiffness_matrix(l::Real, E::Real, I::Real)
     E*I/l^3 * [ 12  6l   -12  6l
                 6l  4l^2 -6l  2l^2
                -12 -6l    12 -6l
                 6l  2l^2 -6l  4l^2]
 end
+stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
 function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
     k = ForwardDiff.derivative(y -> oftype(y, pycurve(y, z)), y)
@@ -85,12 +106,9 @@ end
 function assemble_stiffness_matrix!(model::FEPileModel{T}) where {T}
     K = fill!(model.A, zero(T))
     Z = model.coordinates
-    for i in 1:length(Z)-1
-        ind = 2(i-1) + 1
-        l = Z[i+1] - Z[i]
-        E = mean(model.E[i:i+1])
-        I = mean(model.I[i:i+1])
-        K[ind:ind+3, ind:ind+3] += stiffness_matrix(l, E, I)
+    for beam in model
+        inds = beam.inds
+        K[inds, inds] += stiffness_matrix(beam)
     end
     for i in 1:length(Z)-1
         ind = 2(i-1) + 1
@@ -104,7 +122,7 @@ function assemble_stiffness_matrix!(model::FEPileModel{T}) where {T}
         else
             l′ = mean(Z[i:i+1]) - mean(Z[i-1:i])
         end
-        K[ind, ind] += stiffness_pycurve(model.pycurves[i], D, l′, u, z)
+        K[ind, ind] += stiffness_pycurve(model.pycurves[i], D, abs(l′), u, z)
     end
 end
 
