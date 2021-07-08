@@ -32,6 +32,7 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
     # global vectors
     U::FEMVector{T}
+    K::Matrix{T}
     Fext::Vector{T}
     # parameters
     E::Vector{T}
@@ -49,6 +50,7 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     # global vectors and matrix
     U = FEMVector{T}(ndofs)
     Fext = zeros(T, ndofs)
+    K = zeros(T, ndofs, ndofs)
     # parameters
     Eᵢ = zeros(T, n)
     Iᵢ = zeros(T, n)
@@ -56,7 +58,7 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     # p-y curves
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
-    FEPileModel(coords, U, Fext, Eᵢ, Iᵢ, Dᵢ, pycurves)
+    FEPileModel(coords, U, K, Fext, Eᵢ, Iᵢ, Dᵢ, pycurves)
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
@@ -154,9 +156,9 @@ end
 
 function solve!(model::FEPileModel)
     U = parent(model.U)
+    K = model.K
     Fext = model.Fext
     Fint = similar(Fext)
-    K = similar(Fint, length(Fext), length(Fext))
     fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
     for i in 1:20
