@@ -55,6 +55,7 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     Dᵢ = zeros(T, n)
     # p-y curves
     pycurves = Vector{Any}(undef, n)
+    pycurves .= (pycurve(y, z) = zero(T))
     FEPileModel(coords, U, Fext, Eᵢ, Iᵢ, Dᵢ, pycurves)
 end
 
@@ -162,7 +163,7 @@ function solve!(model::FEPileModel)
         fillzero!(Fint)
         ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
         R = Fint - Fext
-        norm(R[fdofs]) < 1e-8 && return
+        norm(R[fdofs]) < 1e-8 && return model.u
         U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
     end
     error("too mach iterations")
