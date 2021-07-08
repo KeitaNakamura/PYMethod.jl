@@ -154,21 +154,23 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
     end
 end
 
-function solve!(model::FEPileModel)
+function solve!(model::FEPileModel{T}) where {T}
     U = parent(model.U)
     K = model.K
     Fext = model.Fext
     Fint = similar(Fext)
     fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
+    residuals = T[]
     for i in 1:20
         fillzero!(Fint)
         ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
         R = Fint - Fext
-        norm(R[fdofs]) < 1e-8 && return model.u
+        push!(residuals, norm(R[fdofs]))
+        residuals[end] < 1e-8 && return residuals
         U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
     end
-    error("too mach iterations")
+    residuals
 end
 
 function reset!(model::FEPileModel)
