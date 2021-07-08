@@ -20,7 +20,6 @@ function reset!(x::FEMVector)
 end
 
 struct Beam{T}
-    U::FEMVector{T}
     inds::UnitRange{Int}
     # constants
     l::T
@@ -72,6 +71,10 @@ function Base.getproperty(model::FEPileModel, name::Symbol)
         view(Bext, 1:2:length(Bext))
     elseif name == :Mext
         view(Bext, 2:2:length(Bext))
+    elseif name == :F
+        internal_force(model, 1)
+    elseif name == :M
+        internal_force(model, 2)
     else
         getfield(model, name)
     end
@@ -88,7 +91,7 @@ function Base.getindex(model::FEPileModel, i::Int)
     E = mean(model.E[i:i+1])
     I = mean(model.I[i:i+1])
     ind = 2(i-1) + 1
-    Beam(model.U, ind:ind+3, abs(l), E, I)
+    Beam(ind:ind+3, abs(l), E, I)
 end
 
 function stiffness_matrix(l::Real, E::Real, I::Real)
@@ -99,28 +102,19 @@ function stiffness_matrix(l::Real, E::Real, I::Real)
 end
 stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
-function reaction_forces(beam::Beam)
-    inds = beam.inds
-    Fext = stiffness_matrix(beam) * beam.U[inds]
-    f = @view Fext[1:2:end]
-    M = @view Fext[2:2:end]
-    (; f, M)
-end
-
-function distributions(model::FEPileModel{T}) where {T}
-    f = T[]
-    M = T[]
+function internal_force(model::FEPileModel{T}, id::Int) where {T}
+    F = Vector{T}(undef, length(model)+1)
     for i in 1:length(model)
         beam = model[i]
-        f_beam, M_beam = reaction_forces(beam)
-        push!(f, f_beam[1])
-        push!(M, M_beam[1])
+        inds = beam.inds
+        Bext = stiffness_matrix(beam) * model.U[inds]
+        F_beam = Bext[id:2:end]
+        F[i] = F_beam[1]
         if i == length(model)
-            push!(f, -f_beam[2])
-            push!(M, -M_beam[2])
+            F[i+1] = -F_beam[2]
         end
     end
-    (; model.u, model.θ, f, M)
+    F
 end
 
 function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
@@ -183,7 +177,10 @@ end
 @recipe function f(model::FEPileModel)
     label --> ""
     layout := (1, 4)
-    u, θ, f, M = distributions(model)
+    u = model.u
+    θ = model.θ
+    F = model.F
+    M = model.M
     @series begin
         subplot := 1
         xguide --> "Lateral displacement"
