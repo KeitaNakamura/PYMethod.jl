@@ -41,6 +41,36 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     pycurves::Vector{Any}
 end
 
+"""
+    FEPileModel(bottom::Real, top::Real, nelements::Int) -> pile
+
+Construct an object of the finite element model to simulate lateral behavior of pile.
+The `i`th `Beam` element can be accessed by `pile[i]`.
+The following values are vectors storing each nodal value.
+
+# Parameters
+
+* `pile.E`: Young's modulus of pile
+* `pile.I`: Second moment of area of pile
+* `pile.D`: Diameter of pile
+
+# Boundary conditions
+
+* `pile.u`: Lateral displacement
+* `pile.θ`: Angle of deflection (where `θ` can be typed by `\\theta<tab>`)
+* `pile.Fext`: External lateral force
+* `pile.Mext`: External moment
+
+The above vectors will be updated after `solve!` the problem.
+
+# Nodal variables
+
+* `pile.coordinates`: Coordinates of nodes
+* `pile.F`: Internal lateral force
+* `pile.M`: Internal moment
+
+The internal lateral force and moment vectors will be updated after `solve!` the problem.
+"""
 function FEPileModel(bottom::Real, top::Real, nelements::Int)
     coords = LinRange(top, bottom, nelements + 1)
     n = length(coords)
@@ -100,6 +130,11 @@ function stiffness_matrix(l::Real, E::Real, I::Real)
                -12 -6l    12 -6l
                 6l  2l^2 -6l  4l^2]
 end
+"""
+    stiffness_matrix(::Beam)
+
+Construct element stiffness matrix from `Beam`.
+"""
 stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
@@ -148,6 +183,11 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
     end
 end
 
+"""
+    solve!(::FEPileModel)
+
+Solve the finite element problem.
+"""
 function solve!(model::FEPileModel{T}) where {T}
     U = parent(model.U)
     K = model.K
@@ -168,7 +208,13 @@ function solve!(model::FEPileModel{T}) where {T}
     residuals
 end
 
-function reset!(model::FEPileModel)
+"""
+    clear_boundary_conditions!(::FEPileModel)
+
+Clear boundary conditions.
+The parameters and p-y curves are remained.
+"""
+function clear_boundary_conditions!(model::FEPileModel)
     reset!(model.U)
     fillzero!(model.Bext)
     model
