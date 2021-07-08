@@ -33,7 +33,7 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     # global vectors
     U::FEMVector{T}
     K::Matrix{T}
-    Fext::Vector{T}
+    Bext::Vector{T}
     # parameters
     E::Vector{T}
     I::Vector{T}
@@ -49,7 +49,7 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     T = eltype(coords)
     # global vectors and matrix
     U = FEMVector{T}(ndofs)
-    Fext = zeros(T, ndofs)
+    Bext = zeros(T, ndofs)
     K = zeros(T, ndofs, ndofs)
     # parameters
     Eᵢ = zeros(T, n)
@@ -58,27 +58,27 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     # p-y curves
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
-    FEPileModel(coords, U, K, Fext, Eᵢ, Iᵢ, Dᵢ, pycurves)
+    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves)
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
     U = getfield(model, :U)
-    Fext = getfield(model, :Fext)
+    Bext = getfield(model, :Bext)
     if name == :u
         view(U, 1:2:length(U))
     elseif name == :θ
         view(U, 2:2:length(U))
-    elseif name == :fext
-        view(Fext, 1:2:length(Fext))
+    elseif name == :Fext
+        view(Bext, 1:2:length(Bext))
     elseif name == :Mext
-        view(Fext, 2:2:length(Fext))
+        view(Bext, 2:2:length(Bext))
     else
         getfield(model, name)
     end
 end
 
 @generated Base.propertynames(model::FEPileModel) =
-    :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :F, :M))
+    :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
 Base.size(model::FEPileModel) = (length(model.coordinates)-1,)
 function Base.getindex(model::FEPileModel, i::Int)
@@ -157,25 +157,26 @@ end
 function solve!(model::FEPileModel{T}) where {T}
     U = parent(model.U)
     K = model.K
-    Fext = model.Fext
-    Fint = similar(Fext)
+    Bext = model.Bext
+    Fint = similar(Bext)
     fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
     residuals = T[]
     for i in 1:20
         fillzero!(Fint)
         ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
-        R = Fint - Fext
+        R = Fint - Bext
         push!(residuals, norm(R[fdofs]))
-        residuals[end] < 1e-8 && return residuals
+        residuals[end] < 1e-8 && return (Bext .= Fint; residuals)
         U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
     end
+    Bext .= Fint
     residuals
 end
 
 function reset!(model::FEPileModel)
     reset!(model.U)
-    fillzero!(model.Fext)
+    fillzero!(model.Bext)
     model
 end
 
@@ -197,7 +198,7 @@ end
     @series begin
         subplot := 3
         xguide --> "Lateral force"
-        (f, model.coordinates)
+        (F, model.coordinates)
     end
     @series begin
         subplot := 4
