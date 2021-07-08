@@ -13,9 +13,9 @@ function Base.setindex!(x::FEMVector, v, i::Int)
     x.mask[i] = true
     x
 end
-function reset!(x::FEMVector{T}) where {T}
-    fill!(x.data, zero(T))
-    fill!(x.mask, false)
+function reset!(x::FEMVector)
+    fillzero!(x.data)
+    fillzero!(x.mask)
     x
 end
 
@@ -129,7 +129,7 @@ function soil_reaction_force(pycurve, D::Real, l′::Real, y::Real, z::Real)
     pycurve(y, z) * D * l′ # (pressure) * (area)
 end
 
-function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel{T}) where {T}
+function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
     Z = model.coordinates
     for beam in model
         inds = beam.inds
@@ -151,7 +151,7 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
     end
 end
 
-function solve!(model::FEPileModel{T}) where {T}
+function solve!(model::FEPileModel)
     U = parent(model.U)
     Fext = model.Fext
     Fint = similar(Fext)
@@ -159,7 +159,7 @@ function solve!(model::FEPileModel{T}) where {T}
     fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
     for i in 1:20
-        fill!(Fint, zero(T))
+        fillzero!(Fint)
         ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
         R = Fint - Fext
         norm(R[fdofs]) < 1e-8 && return
@@ -168,9 +168,9 @@ function solve!(model::FEPileModel{T}) where {T}
     error("too mach iterations")
 end
 
-function reset!(model::FEPileModel{T}) where {T}
+function reset!(model::FEPileModel)
     reset!(model.U)
-    fill!(model.Fext, zero(T))
+    fillzero!(model.Fext)
     model
 end
 
