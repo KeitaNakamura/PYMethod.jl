@@ -20,7 +20,7 @@ function reset!(x::FEMVector{T}) where {T}
 end
 
 struct Beam{T}
-    u::FEMVector{T}
+    U::FEMVector{T}
     inds::UnitRange{Int}
     # constants
     l::T
@@ -30,10 +30,9 @@ end
 
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
-    # global vectors and matrix (Ax = b)
-    x::FEMVector{T}
-    b::Vector{T}
-    A::Matrix{T}
+    # global vectors
+    U::FEMVector{T}
+    Fext::Vector{T}
     # parameters
     E::Vector{T}
     I::Vector{T}
@@ -48,29 +47,28 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     ndofs = n * 2 # one direction, TODO: handle two directions
     T = eltype(coords)
     # global vectors and matrix
-    x = FEMVector{T}(ndofs)
-    b = zeros(T, ndofs)
-    A = zeros(T, ndofs, ndofs)
+    U = FEMVector{T}(ndofs)
+    Fext = zeros(T, ndofs)
     # parameters
     Eᵢ = zeros(T, n)
     Iᵢ = zeros(T, n)
     Dᵢ = zeros(T, n)
     # p-y curves
     pycurves = Vector{Any}(undef, n)
-    FEPileModel(coords, x, b, A, Eᵢ, Iᵢ, Dᵢ, pycurves)
+    FEPileModel(coords, U, Fext, Eᵢ, Iᵢ, Dᵢ, pycurves)
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
-    x = getfield(model, :x)
-    b = getfield(model, :b)
+    U = getfield(model, :U)
+    Fext = getfield(model, :Fext)
     if name == :u
-        view(x, 1:2:length(x))
+        view(U, 1:2:length(U))
     elseif name == :θ
-        view(x, 2:2:length(x))
-    elseif name == :F
-        view(b, 1:2:length(b))
+        view(U, 2:2:length(U))
+    elseif name == :f
+        view(Fext, 1:2:length(Fext))
     elseif name == :M
-        view(b, 2:2:length(b))
+        view(Fext, 2:2:length(Fext))
     else
         getfield(model, name)
     end
@@ -87,7 +85,7 @@ function Base.getindex(model::FEPileModel, i::Int)
     E = mean(model.E[i:i+1])
     I = mean(model.I[i:i+1])
     ind = 2(i-1) + 1
-    Beam(model.x, ind:ind+3, abs(l), E, I)
+    Beam(model.U, ind:ind+3, abs(l), E, I)
 end
 
 function stiffness_matrix(l::Real, E::Real, I::Real)
@@ -100,10 +98,10 @@ stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
 function reaction_forces(beam::Beam)
     inds = beam.inds
-    b = stiffness_matrix(beam) * beam.u[inds]
-    F = @view b[1:2:end]
-    M = @view b[2:2:end]
-    (; F, M)
+    Fext = stiffness_matrix(beam) * beam.U[inds]
+    f = @view Fext[1:2:end]
+    M = @view Fext[2:2:end]
+    (; f, M)
 end
 
 function distributions(model::FEPileModel{T}) where {T}
@@ -127,18 +125,21 @@ function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
     k * D * l′
 end
 
-function assemble_stiffness_matrix!(model::FEPileModel{T}) where {T}
-    K = fill!(model.A, zero(T))
+function soil_reaction_force(pycurve, D::Real, l′::Real, y::Real, z::Real)
+    pycurve(y, z) * D * l′ # (pressure) * (area)
+end
+
+function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel{T}) where {T}
     Z = model.coordinates
     for beam in model
         inds = beam.inds
-        K[inds, inds] += stiffness_matrix(beam)
+        Fint[inds] += stiffness_matrix(beam) * U[inds]
     end
-    for i in 1:length(Z)-1
+    for i in 1:length(Z)
         ind = 2(i-1) + 1
-        u = model.u[i]
+        y = U[i]
         z = Z[i]
-        D = mean(model.D[i:i+1])
+        D = model.D[i]
         if i == 1
             l′ = mean(Z[i:i+1])
         elseif i == length(Z)
@@ -146,39 +147,30 @@ function assemble_stiffness_matrix!(model::FEPileModel{T}) where {T}
         else
             l′ = mean(Z[i:i+1]) - mean(Z[i-1:i])
         end
-        K[ind, ind] += stiffness_pycurve(model.pycurves[i], D, abs(l′), u, z)
+        Fint[ind] += soil_reaction_force(model.pycurves[i], D, l′, y, z)
     end
 end
 
-function solve!(u::AbstractVector, F::AbstractVector, K::AbstractMatrix, fdofs::BitVector)
-    # sweep
-    @. fdofs = !fdofs
-    F .-= K[:, fdofs] * u[fdofs]
-    # solve equation
-    @. fdofs = !fdofs
-    u[fdofs] = K[fdofs, fdofs] \ F[fdofs]
-    u
-end
-
-function solve!(model::FEPileModel)
-    u = parent(model.x)
-    u_n = similar(u)
-    F = similar(model.b)
-    fdofs = .!model.x.mask
+function solve!(model::FEPileModel{T}) where {T}
+    U = parent(model.U)
+    Fext = model.Fext
+    Fint = similar(Fext)
+    K = similar(Fint, length(Fext), length(Fext))
+    fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
-    while true
-        copy!(u_n, u)
-        copy!(F, model.b)
-        assemble_stiffness_matrix!(model)
-        solve!(u, F, model.A, fdofs)
-        norm(u - u_n) < 1e-8 && break
+    for i in 1:20
+        fill!(Fint, zero(T))
+        ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
+        R = Fint - Fext
+        norm(R[fdofs]) < 1e-8 && return
+        U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
     end
-    model.u
+    error("too mach iterations")
 end
 
 function reset!(model::FEPileModel{T}) where {T}
-    reset!(model.x)
-    fill!(model.b, zero(T))
+    reset!(model.U)
+    fill!(model.Fext, zero(T))
     model
 end
 
