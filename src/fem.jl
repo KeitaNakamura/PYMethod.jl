@@ -98,6 +98,30 @@ function stiffness_matrix(l::Real, E::Real, I::Real)
 end
 stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
+function reaction_forces(beam::Beam)
+    inds = beam.inds
+    b = stiffness_matrix(beam) * beam.u[inds]
+    F = @view b[1:2:end]
+    M = @view b[2:2:end]
+    (; F, M)
+end
+
+function distributions(model::FEPileModel{T}) where {T}
+    F = T[]
+    M = T[]
+    for i in 1:length(model)
+        beam = model[i]
+        F_beam, M_beam = reaction_forces(beam)
+        push!(F, F_beam[1])
+        push!(M, M_beam[1])
+        if i == length(model)
+            push!(F, -F_beam[2])
+            push!(M, -M_beam[2])
+        end
+    end
+    (; model.u, model.θ, F, M)
+end
+
 function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
     k = ForwardDiff.derivative(y -> oftype(y, pycurve(y, z)), y)
     k * D * l′
@@ -156,4 +180,11 @@ function reset!(model::FEPileModel{T}) where {T}
     reset!(model.x)
     fill!(model.b, zero(T))
     model
+end
+
+@recipe function f(model::FEPileModel)
+    xguide --> "Lateral displacement"
+    yguide --> "Coordinates"
+    label --> ""
+    (model.u, model.coordinates)
 end
