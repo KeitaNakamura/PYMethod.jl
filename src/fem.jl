@@ -142,13 +142,13 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         z = Z[i]
         D = model.D[i]
         if i == 1
-            l′ = mean(Z[i:i+1])
+            l′ = mean(Z[i:i+1]) - Z[i]
         elseif i == length(Z)
-            l′ = mean(Z[i-1:i])
+            l′ = Z[i] - mean(Z[i-1:i])
         else
             l′ = mean(Z[i:i+1]) - mean(Z[i-1:i])
         end
-        Fint[ind] += soil_reaction_force(model.pycurves[i], D, l′, y, z)
+        Fint[ind] += soil_reaction_force(model.pycurves[i], D, abs(l′), y, z)
     end
 end
 
