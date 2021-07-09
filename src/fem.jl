@@ -152,11 +152,6 @@ function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F
 end
 
-function stiffness_pycurve(pycurve, D::Real, l′::Real, y::Real, z::Real)
-    k = ForwardDiff.derivative(y -> oftype(y, pycurve(y, z)), y)
-    k * D * l′
-end
-
 function soil_reaction_force(pycurve, D::Real, l′::Real, y::Real, z::Real)
     pycurve(y, z) * D * l′ # (pressure) * (area)
 end
