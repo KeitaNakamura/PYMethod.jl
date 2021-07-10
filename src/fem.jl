@@ -125,10 +125,10 @@ function Base.getindex(model::FEPileModel, i::Int)
 end
 
 function stiffness_matrix(l::Real, E::Real, I::Real)
-    E*I/l^3 * [ 12  6l   -12  6l
-                6l  4l^2 -6l  2l^2
-               -12 -6l    12 -6l
-                6l  2l^2 -6l  4l^2]
+    E*I/l^3 * @SMatrix [ 12  6l   -12  6l
+                         6l  4l^2 -6l  2l^2
+                        -12 -6l    12 -6l
+                         6l  2l^2 -6l  4l^2]
 end
 """
     stiffness_matrix(::Beam)
