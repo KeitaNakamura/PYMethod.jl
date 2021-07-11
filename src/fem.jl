@@ -137,6 +137,19 @@ Construct element stiffness matrix from `Beam`.
 """
 stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
 
+function mass_matrix(l::Real)
+    @SMatrix [ 13l/35    -11l^2/210   9l/70    13l^2/420
+              -11l^2/210    l^3/105 -13l^2/420  -l^3/140
+                9l/70    -13l^2/420  13l/35    11l^2/210
+               13l^2/420   -l^3/140  11l^2/210   l^3/105]
+end
+"""
+    mass_matrix(::Beam)
+
+Construct mass matrix from `Beam`.
+"""
+mass_matrix(beam::Beam) = mass_matrix(beam.l)
+
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F = Vector{T}(undef, length(model)+1)
     for i in 1:length(model)
@@ -152,11 +165,8 @@ function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F
 end
 
-function soil_reaction_force(pycurve, D::Real, l′::Real, y::Real, z::Real)
-    pycurve(y, z) * D * l′ # (pressure) * (area)
-end
-
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
+    P = zero(U)
     Z = model.coordinates
     for beam in model
         inds = beam.inds
@@ -167,14 +177,11 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         y = U[i]
         z = Z[i]
         D = model.D[i]
-        if i == 1
-            l′ = mean(Z[i:i+1]) - Z[i]
-        elseif i == length(Z)
-            l′ = Z[i] - mean(Z[i-1:i])
-        else
-            l′ = mean(Z[i:i+1]) - mean(Z[i-1:i])
-        end
-        Fint[ind] += soil_reaction_force(model.pycurves[i], D, abs(l′), y, z)
+        P[ind] = D * model.pycurves[i](y, z)
+    end
+    for beam in model
+        inds = beam.inds
+        Fint[inds] += mass_matrix(beam) * P[inds]
     end
 end
 
