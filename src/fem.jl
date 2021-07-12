@@ -174,7 +174,7 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
     end
     for i in 1:length(Z)
         ind = 2(i-1) + 1
-        y = U[i]
+        y = U[ind]
         z = Z[i]
         D = model.D[i]
         P[ind] = D * model.pycurves[i](y, z)
