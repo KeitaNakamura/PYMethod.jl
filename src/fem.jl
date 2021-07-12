@@ -20,7 +20,7 @@ function reset!(x::FEMVector)
 end
 
 struct Beam{T}
-    inds::UnitRange{Int}
+    inds::SVector{4, Int}
     # constants
     l::T
     E::T
@@ -118,10 +118,10 @@ function Base.getindex(model::FEPileModel, i::Int)
     @boundscheck checkbounds(model, i)
     Z = model.coordinates
     l = Z[i+1] - Z[i]
-    E = mean(model.E[i:i+1])
-    I = mean(model.I[i:i+1])
+    E = mean(@view model.E[i:i+1])
+    I = mean(@view model.I[i:i+1])
     ind = 2(i-1) + 1
-    Beam(ind:ind+3, abs(l), E, I)
+    Beam(SVector{4}(ind:ind+3), abs(l), E, I)
 end
 
 function stiffness_matrix(l::Real, E::Real, I::Real)
@@ -203,7 +203,7 @@ function solve!(model::FEPileModel{T}) where {T}
         ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
         R = Fint - Bext
         push!(residuals, norm(R[fdofs]))
-        residuals[end] < 1e-8 && return (Bext .= Fint; residuals)
+        residuals[end] < 1e-6 && return (Bext .= Fint; residuals)
         U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
     end
     Bext .= Fint
