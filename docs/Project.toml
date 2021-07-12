@@ -1,2 +1,3 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+PYMethod = "6f699bbf-8c85-4dbc-8fd5-f5a2312568a0"
