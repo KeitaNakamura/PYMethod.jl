@@ -102,7 +102,7 @@ function Base.getproperty(model::FEPileModel, name::Symbol)
     elseif name == :Mext
         view(Bext, 2:2:length(Bext))
     elseif name == :F
-        internal_force(model, 1)
+        -internal_force(model, 1)
     elseif name == :M
         internal_force(model, 2)
     else
@@ -224,31 +224,25 @@ end
 
 @recipe function f(model::FEPileModel)
     label --> ""
-    layout := (1, 4)
+    layout := (1, 3)
     u = model.u
-    θ = model.θ
-    F = model.F
     M = model.M
+    F = model.F
     @series begin
         subplot := 1
-        xguide --> "Lateral displacement"
+        xguide --> "Deflection"
         yguide --> "Coordinates"
         (u, model.coordinates)
     end
     @series begin
         subplot := 2
-        xguide --> "Angle"
-        (θ, model.coordinates)
+        xguide --> "Moment"
+        (M, model.coordinates)
     end
     @series begin
         subplot := 3
-        xguide --> "Lateral force"
+        xguide --> "Shear force"
         (F, model.coordinates)
-    end
-    @series begin
-        subplot := 4
-        xguide --> "Moment"
-        (M, model.coordinates)
     end
 end
 

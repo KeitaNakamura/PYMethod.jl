@@ -1,3 +1,22 @@
+"""
+    ChangEquation(bottom, top; parameters...)
+
+# Parameters
+
+* `z_0`: height of ground surface (`z_0 = 0` by default)
+* `F_t`: Lateral load at pile head
+* `M_t`: Moment at pile head (`M_t = 0` by default)
+* `D`: Diameter of pile
+* `E`: Young's modulus of pile
+* `I`: Second moment of area of pile
+* `k`: Modulus of subgrade reaction
+
+# Examples
+
+```jldoctest
+julia> eq = ChangEquation(-19, 1; F_t = 10, D = 0.6, E = 2e8, I = 0.0002507, k = 3750);
+```
+"""
 struct ChangEquation
     F_t::Float64   # lateral force at top
     M_t::Float64   # bending moment at top
@@ -94,8 +113,8 @@ end
     F = calculate_shearforce.(Ref(eq), coords)
     @series begin
         subplot := 1
-        xguide --> "Lateral displacement"
-        yguide --> "Coordinates"
+        xguide --> "Deflection"
+        yguide --> "Coordinate"
         (u, coords)
     end
     @series begin

@@ -19,6 +19,7 @@ makedocs(;
         ],
         "API" => [
             "api/FEM.md",
+            "api/ChangEquation.md",
         ]
     ],
     doctest = true, # :fix

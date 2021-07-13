@@ -1,7 +1,3 @@
-```@meta
-DocTestSetup = :(using PYMethod)
-```
-
 # Finite Element Analysis
 
 Simulate lateral behavior of pile based on FEM using beam elements.
@@ -55,15 +51,17 @@ K_{ij} = \int EI N''_i N''_j \mathrm{d}x,\quad M_{ij} = \int N_i N_j \mathrm{d}x
 
 ### STEP 1: Create pile object
 
-If the bottom and top coordinates are ``0\,\mathrm{m}`` and ``1\,\mathrm{m}``, respectively,
+If the bottom and top coordinates are ``0\,\mathrm{m}`` and ``20\,\mathrm{m}``, respectively,
 then the object can be constructed as
 
-```jldoctest pile
-julia> pile = FEPileModel(0, 1, 20);
+```@example pile
+using PYMethod # hide
+pile = FEPileModel(0, 20, 200)
+nothing # hide
 ```
 
 The last argument specifies the number of beam elements of the pile.
-Thus, every element has the length of ``0.05\,\mathrm{m}``.
+Thus, every element has the length of ``0.1\,\mathrm{m}``.
 Check `pile.coordinates` for coordinates of all nodes.
 
 ### STEP 2: Initialize parameters
@@ -80,12 +78,11 @@ In the following example, Young's modulus is ``2.0\times10^{11}\,\mathrm{N/m^2}`
 second moment of area is ``3.07\times10^{-7}\,\mathrm{m^4}``,
 and diameter is ``0.05\,\mathrm{m}`` for all nodes.
 
-```jldoctest pile
-julia> pile.E .= 2.0e11;
-
-julia> pile.I .= 3.07e-7;
-
-julia> pile.D .= 0.05;
+```@example pile
+pile.E .= 2.0e11
+pile.I .= 3.07e-7
+pile.D .= 0.05
+nothing # hide
 ```
 
 ### STEP 3: Setup boundary conditions
@@ -98,8 +95,9 @@ julia> pile.D .= 0.05;
 Similar to parameters, above values are also vectors with `length` of number of nodes.
 To apply the lateral force with ``100\,\mathrm{N}`` at the top of the pile, simply set the value as
 
-```jldoctest pile
-julia> pile.Fext[1] = 100;
+```@example pile
+pile.Fext[1] = 100
+nothing # hide
 ```
 
 ### STEP 4: Setup p-y curves
@@ -109,33 +107,30 @@ julia> pile.Fext[1] = 100;
 P-y curves also needs to be setup on each nodes.
 The object must be the function which has the lateral displacement `y` and
 vertical coordinate `z` as arguments and returns the earth pressure `p`.
-`pycurve(y, z) = 0` is used by defalut.
+`pycurve(y, z) = 0` is used by default.
+
+```@example pile
+k = 50e3
+pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k*y
+nothing # hide
+```
 
 ### STEP 5: Solve the problem
 
-```jldoctest pile
-julia> solve!(pile);
-
-julia> pile.u
-21-element view(::PYMethod.FEMVector{Float64}, 1:2:41) with eltype Float64:
- 0.0005428881650347354
- 0.0005022054831674393
- 0.00046172638436203214
- 0.00042165445168040216
- 0.00038219326818443735
- 0.00034354641693602555
- 0.00030591748099705464
- 0.00026951004342941267
- 0.00023452768729498742
- 0.00020117399565566698
- ⋮
- 0.00011292073832721299
- 8.811753528719052e-5
- 6.596091205171245e-5
- 4.665445168266666e-5
- 3.0401737241941133e-5
- 1.7406351791423797e-5
- 7.871878393002527e-6
- 2.0019001085652914e-6
- 0.0
+```@example pile
+solve!(pile)
+pile.u
 ```
+
+### STEP 6: Visualize the results
+
+```@example pile
+using Plots
+eq = ChangEquation(0, 20; z_0 = 19, E = 2e11, I = 3.07e-7, D = 0.05, F_t = 100, k = 50e3)
+plot(pile; label = "FEM")
+plot!(eq; label = "Chang's equation")
+plot!(legend = :bottomleft); nothing # hide
+savefig("fem_chang.svg"); nothing # hide
+```
+
+![](fem_chang.svg)
