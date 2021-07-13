@@ -231,7 +231,7 @@ end
     @series begin
         subplot := 1
         xguide --> "Deflection"
-        yguide --> "Coordinates"
+        yguide --> "Coordinate"
         (u, model.coordinates)
     end
     @series begin

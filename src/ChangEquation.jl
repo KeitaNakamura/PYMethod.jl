@@ -61,6 +61,11 @@ function ChangEquation(z_b::Real, z_t::Real; z_0::Real = 0, F_t::Real, M_t::Real
     end
 end
 
+"""
+    calculate_deflection(::ChangEquation, z)
+
+Calculate deflection at height `z`.
+"""
 function calculate_deflection(eq::ChangEquation, z::Real)
     @assert eq.z_b ≤ z ≤ eq.z_t
     E = eq.E
@@ -76,6 +81,11 @@ function calculate_deflection(eq::ChangEquation, z::Real)
     end
 end
 
+"""
+    calculate_moment(::ChangEquation, z)
+
+Calculate moment at height `z`.
+"""
 function calculate_moment(eq::ChangEquation, z::Real)
     @assert eq.z_b ≤ z ≤ eq.z_t
     x = -(z - eq.z_0)
@@ -90,6 +100,11 @@ function calculate_moment(eq::ChangEquation, z::Real)
     end
 end
 
+"""
+    calculate_shearforce(::ChangEquation, z)
+
+Calculate shear force at height `z`.
+"""
 function calculate_shearforce(eq::ChangEquation, z::Real)
     @assert eq.z_b ≤ z ≤ eq.z_t
     x = -(z - eq.z_0)
