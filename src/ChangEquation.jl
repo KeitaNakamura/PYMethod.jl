@@ -84,3 +84,28 @@ function calculate_shearforce(eq::ChangEquation, z::Real)
         -eq.F_t * exp(-β*x) * (cos(β*x) - (1+2β*h_0)*sin(β*x))
     end
 end
+
+@recipe function f(eq::ChangEquation)
+    label --> ""
+    layout := (1, 3)
+    coords = LinRange(eq.z_b, eq.z_t, 1000)
+    u = calculate_deflection.(Ref(eq), coords)
+    M = calculate_moment.(Ref(eq), coords)
+    F = calculate_shearforce.(Ref(eq), coords)
+    @series begin
+        subplot := 1
+        xguide --> "Lateral displacement"
+        yguide --> "Coordinates"
+        (u, coords)
+    end
+    @series begin
+        subplot := 2
+        xguide --> "Moment"
+        (M, coords)
+    end
+    @series begin
+        subplot := 3
+        xguide --> "Shear force"
+        (F, coords)
+    end
+end
