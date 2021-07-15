@@ -27,6 +27,32 @@ struct Beam{T}
     I::T
 end
 
+function stiffness_matrix(l::Real, E::Real, I::Real)
+    E*I/l^3 * @SMatrix [ 12  6l   -12  6l
+                         6l  4l^2 -6l  2l^2
+                        -12 -6l    12 -6l
+                         6l  2l^2 -6l  4l^2]
+end
+"""
+    stiffness_matrix(::Beam)
+
+Construct element stiffness matrix from `Beam`.
+"""
+stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
+
+function mass_matrix(l::Real)
+    @SMatrix [ 13l/35    -11l^2/210   9l/70    13l^2/420
+              -11l^2/210    l^3/105 -13l^2/420  -l^3/140
+                9l/70    -13l^2/420  13l/35    11l^2/210
+               13l^2/420   -l^3/140  11l^2/210   l^3/105]
+end
+"""
+    mass_matrix(::Beam)
+
+Construct mass matrix from `Beam`.
+"""
+mass_matrix(beam::Beam) = mass_matrix(beam.l)
+
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
     # global vectors
@@ -123,32 +149,6 @@ function Base.getindex(model::FEPileModel, i::Int)
     ind = 2(i-1) + 1
     Beam(SVector{4}(ind:ind+3), abs(l), E, I)
 end
-
-function stiffness_matrix(l::Real, E::Real, I::Real)
-    E*I/l^3 * @SMatrix [ 12  6l   -12  6l
-                         6l  4l^2 -6l  2l^2
-                        -12 -6l    12 -6l
-                         6l  2l^2 -6l  4l^2]
-end
-"""
-    stiffness_matrix(::Beam)
-
-Construct element stiffness matrix from `Beam`.
-"""
-stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
-
-function mass_matrix(l::Real)
-    @SMatrix [ 13l/35    -11l^2/210   9l/70    13l^2/420
-              -11l^2/210    l^3/105 -13l^2/420  -l^3/140
-                9l/70    -13l^2/420  13l/35    11l^2/210
-               13l^2/420   -l^3/140  11l^2/210   l^3/105]
-end
-"""
-    mass_matrix(::Beam)
-
-Construct mass matrix from `Beam`.
-"""
-mass_matrix(beam::Beam) = mass_matrix(beam.l)
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F = Vector{T}(undef, length(model)+1)
