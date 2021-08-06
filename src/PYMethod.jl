@@ -11,7 +11,8 @@ export
     FEPileModel,
     solve!
 
-include("utils.jl")
+fillzero!(x) = fill!(x, zero(eltype(x)))
+
 include("ChangEquation.jl")
 include("fem.jl")
 
