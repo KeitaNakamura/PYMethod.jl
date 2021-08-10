@@ -2,7 +2,6 @@
     ChangEquation(bottom, top; parameters...)
 
 # Parameters
-
 * `z_0`: height of ground surface (`z_0 = 0` by default)
 * `F_t`: Lateral load at pile head
 * `M_t`: Moment at pile head (`M_t = 0` by default)
@@ -12,7 +11,6 @@
 * `k`: Modulus of subgrade reaction
 
 # Examples
-
 ```jldoctest
 julia> eq = ChangEquation(-19, 1; F_t = 10, D = 0.6, E = 2e8, I = 0.0002507, k = 3750);
 ```
