@@ -129,6 +129,7 @@ using Plots
 eq = ChangEquation(0, 20; z_0 = 19, E = 2e11, I = 3.07e-7, D = 0.05, F_t = 100, k = 50e3)
 plot(pile; label = "FEM")
 plot!(eq; label = "Chang's equation")
+nothing # hide
 plot!(legend = :bottomleft); nothing # hide
 savefig("fem_chang.svg"); nothing # hide
 ```
