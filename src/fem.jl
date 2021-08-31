@@ -165,6 +165,15 @@ function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F
 end
 
+function pycurve_wrapper(pycurve, y, z)
+    if y == 0
+        p = pycurve(y, z)
+        return p == 0 ? zero(p) : p
+    else
+        return pycurve(abs(y), z) * sign(y)
+    end
+end
+
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
     P = zero(U)
     Z = model.coordinates
@@ -177,7 +186,7 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         y = U[ind]
         z = Z[i]
         D = model.D[i]
-        P[ind] = D * model.pycurves[i](y, z)
+        P[ind] = D * pycurve_wrapper(model.pycurves[i], y, z)
     end
     for beam in model
         inds = beam.inds
