@@ -131,7 +131,4 @@ plot(pile; label = "FEM")
 plot!(eq; label = "Chang's equation")
 nothing # hide
 plot!(legend = :bottomleft); nothing # hide
-savefig("fem_chang.svg"); nothing # hide
 ```
-
-![](fem_chang.svg)
