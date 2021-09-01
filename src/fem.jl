@@ -206,15 +206,35 @@ function solve!(model::FEPileModel{T}) where {T}
     Fint = similar(Bext)
     fdofs = .!model.U.mask
     fdofs[end-1:end] .= false # bottom fixed
-    residuals = T[]
-    for i in 1:20
-        fillzero!(Fint)
-        ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U)
-        R = Fint - Bext
-        push!(residuals, norm(R[fdofs]))
-        residuals[end] < 1e-6 && return (Bext .= Fint; residuals)
-        U[fdofs] .-= K[fdofs, fdofs] \ R[fdofs]
+
+    maxiter = 40
+    dU = zero(U)
+    R = similar(U)
+
+    converged = false
+    residuals = Float64[]
+
+    r = Inf
+    for i in 1:maxiter
+        α = 1.0
+        r_prev = r
+        while true
+            fillzero!(Fint)
+            ForwardDiff.jacobian!(K, (y, x) -> assemble_force_vector!(y, x, model), Fint, U + α * dU)
+            R .= Fint - Bext
+            r = norm(R[fdofs])
+            if r < r_prev || α < 0.1
+                @. U += α * dU
+                break
+            else
+                α = α^2*r_prev / 2(r + α*r_prev - r_prev)
+            end
+        end
+        push!(residuals, r)
+        r ≤ 1e-5 && (converged = true; break)
+        dU[fdofs] = K[fdofs, fdofs] \ -R[fdofs]
     end
+
     Bext .= Fint
     residuals
 end
