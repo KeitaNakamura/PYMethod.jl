@@ -65,6 +65,8 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     D::Vector{T}
     # p-y curves
     pycurves::Vector{Any}
+    # sparsity pattern
+    spat::SparseMatrixCSC{T, Int}
 end
 
 """
@@ -113,7 +115,7 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     # p-y curves
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
-    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves)
+    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
@@ -175,7 +177,7 @@ function pycurve_wrapper(pycurve, y, z)
 end
 
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
-    P = zero(U)
+    P = similar(U)
     Z = model.coordinates
     for beam in model
         inds = beam.inds
@@ -186,12 +188,39 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         y = U[ind]
         z = Z[i]
         D = model.D[i]
-        P[ind] = D * pycurve_wrapper(model.pycurves[i], y, z)
+        P[ind] = pycurve_wrapper(model.pycurves[i], y, z)
+        P[ind] *= D
+        P[ind+1] = 0
     end
     for beam in model
         inds = beam.inds
         Fint[inds] += mass_matrix(beam) * P[inds]
     end
+end
+
+function sparsity_pattern(::Type{T}, nelts::Int) where {T}
+    ndofs = 2(nelts + 1)
+    K = zeros(ndofs, ndofs)
+    for i in 1:nelts
+        ind = 2(i-1) + 1
+        inds = ind:ind+3
+        K[inds, inds] .= one(T)
+    end
+    sparse(K)
+end
+
+function copytospmat!(dest::SparseMatrixCSC, src::AbstractMatrix)
+    @assert size(dest) == size(src)
+    dest .= 0
+    rows = rowvals(dest)
+    vals = nonzeros(dest)
+    m, n = size(dest)
+    for j = 1:n
+        for i in nzrange(dest, j)
+            @inbounds vals[i] = src[rows[i], j]
+        end
+    end
+    dest
 end
 
 """
@@ -232,7 +261,8 @@ function solve!(model::FEPileModel{T}) where {T}
         end
         push!(residuals, r)
         r ≤ 1e-5 && (converged = true; break)
-        dU[fdofs] = K[fdofs, fdofs] \ -R[fdofs]
+        copytospmat!(model.spat, K)
+        dU[fdofs] = model.spat[fdofs, fdofs] \ -R[fdofs]
     end
 
     Bext .= Fint
