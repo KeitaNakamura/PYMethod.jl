@@ -8,26 +8,26 @@ pile.I .= 3.07e-7
 pile.D .= 0.05</code></pre><h3 id="STEP-3:-Setup-boundary-conditions"><a class="docs-heading-anchor" href="#STEP-3:-Setup-boundary-conditions">STEP 3: Setup boundary conditions</a><a id="STEP-3:-Setup-boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#STEP-3:-Setup-boundary-conditions" title="Permalink"></a></h3><ul><li><code>pile.u</code>: Lateral displacement</li><li><code>pile.θ</code>: Angle of deflection (where <code>θ</code> can be typed by <code>\theta&lt;tab&gt;</code>)</li><li><code>pile.Fext</code>: Lateral force</li><li><code>pile.Mext</code>: Moment</li></ul><p>Similar to parameters, above values are also vectors with <code>length</code> of number of nodes. To apply the lateral force with <span>$100\,\mathrm{N}$</span> at the top of the pile, simply set the value as</p><pre><code class="language-julia hljs">pile.Fext[1] = 100</code></pre><h3 id="STEP-4:-Setup-p-y-curves"><a class="docs-heading-anchor" href="#STEP-4:-Setup-p-y-curves">STEP 4: Setup p-y curves</a><a id="STEP-4:-Setup-p-y-curves-1"></a><a class="docs-heading-anchor-permalink" href="#STEP-4:-Setup-p-y-curves" title="Permalink"></a></h3><ul><li><code>pile.pycurves</code>: <code>pycurve(y, z) -&gt; p</code></li></ul><p>P-y curves also needs to be setup on each nodes. The object must be the function which has the lateral displacement <code>y</code> and vertical coordinate <code>z</code> as arguments and returns the earth pressure <code>p</code>. <code>pycurve(y, z) = 0</code> is used by default.</p><pre><code class="language-julia hljs">k = 50e3
 pile.pycurves .= pycurve(y, z) = z &gt; 19 ? 0 : k*y</code></pre><h3 id="STEP-5:-Solve-the-problem"><a class="docs-heading-anchor" href="#STEP-5:-Solve-the-problem">STEP 5: Solve the problem</a><a id="STEP-5:-Solve-the-problem-1"></a><a class="docs-heading-anchor-permalink" href="#STEP-5:-Solve-the-problem" title="Permalink"></a></h3><pre><code class="language-julia hljs">solve!(pile)
 pile.u</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">201-element view(::PYMethod.FEMVector{Float64}, 1:2:401) with eltype Float64:
- 0.045840911131404004
- 0.04447356804156951
- 0.04310785361623017
- 0.04174539651988102
- 0.04038782541701719
- 0.03903676897213365
- 0.03769385584972551
- 0.03636071471428791
- 0.03503897423031583
- 0.03373026306230436
+ 0.04584091112841544
+ 0.044473568038671994
+ 0.04310785361342372
+ 0.04174539651716563
+ 0.04038782541439284
+ 0.03903676896960023
+ 0.03769385584728279
+ 0.03636071471193552
+ 0.03503897422805328
+ 0.033730263060131056
  ⋮
- 8.541393542165745e-6
- 6.7072095571165955e-6
- 5.050922680217462e-6
- 3.5931063760880777e-6
- 2.3543132550964516e-6
- 1.3550809792052493e-6
- 6.15937276051744e-7
- 1.5740397763178842e-7
+ 8.541393538462138e-6
+ 6.707209554235918e-6
+ 5.05092267806797e-6
+ 3.5931063745724206e-6
+ 2.354313254111759e-6
+ 1.355080978643121e-6
+ 6.15937275798249e-7
+ 1.5740397756749905e-7
  0.0</code></pre><h3 id="STEP-6:-Visualize-the-results"><a class="docs-heading-anchor" href="#STEP-6:-Visualize-the-results">STEP 6: Visualize the results</a><a id="STEP-6:-Visualize-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#STEP-6:-Visualize-the-results" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Plots
 eq = ChangEquation(0, 20; z_0 = 19, E = 2e11, I = 3.07e-7, D = 0.05, F_t = 100, k = 50e3)
 plot(pile; label = &quot;FEM&quot;)
-plot!(eq; label = &quot;Chang&#39;s equation&quot;)</code></pre><p><img src="../fem_chang.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../../api/FEM/">FEM »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Friday 3 September 2021 13:39">Friday 3 September 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot!(eq; label = &quot;Chang&#39;s equation&quot;)</code></pre><p><img src="../fem_chang.svg" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../../api/FEM/">FEM »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Sunday 5 September 2021 05:29">Sunday 5 September 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
