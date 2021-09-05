@@ -53,7 +53,7 @@ Construct mass matrix from `Beam`.
 """
 mass_matrix(beam::Beam) = mass_matrix(beam.l)
 
-struct FEPileModel{T} <: AbstractVector{Beam{T}}
+mutable struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
     # global vectors
     U::FEMVector{T}
@@ -63,8 +63,8 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     E::Vector{T}
     I::Vector{T}
     D::Vector{T}
-    # p-y curves
-    pycurves::Vector{Any}
+    # p-y curve
+    pycurve::Any
     # sparsity pattern
     spat::SparseMatrixCSC{T, Int}
 end
@@ -112,10 +112,9 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     Eᵢ = zeros(T, n)
     Iᵢ = zeros(T, n)
     Dᵢ = zeros(T, n)
-    # p-y curves
-    pycurves = Vector{Any}(undef, n)
-    pycurves .= (pycurve(y, z) = zero(T))
-    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
+    # p-y curve
+    pycurve = pycurve(y, z) = zero(T)
+    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurve, sparsity_pattern(T, n-1))
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
@@ -188,7 +187,7 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         y = U[ind]
         z = Z[i]
         D = model.D[i]
-        P[ind] = pycurve_wrapper(model.pycurves[i], y, z)
+        P[ind] = pycurve_wrapper(model.pycurve, y, z)
         P[ind] *= D
         P[ind+1] = 0
     end
@@ -273,7 +272,7 @@ end
     clear_boundary_conditions!(::FEPileModel)
 
 Clear boundary conditions.
-The parameters and p-y curves are remained.
+The parameters and p-y curve are remained.
 """
 function clear_boundary_conditions!(model::FEPileModel)
     reset!(model.U)
