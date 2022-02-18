@@ -218,13 +218,17 @@ end
 
 Solve the finite element problem.
 """
-function solve!(model::FEPileModel{T}) where {T}
+function solve!(model::FEPileModel{T}; fixbottom::Bool = true) where {T}
     U = parent(model.U)
     K = model.K
     Bext = model.Bext
     Fint = similar(Bext)
     fdofs = .!model.U.mask
-    fdofs[end-1:end] .= false # bottom fixed
+    if fixbottom
+        fdofs[end-1:end] .= false # bottom fixed
+    # else
+        # !any(model.U.mask) && error("dirichlet boundary conditions must be given explicitely when `fixbottom == false`")
+    end
 
     maxiter = 40
     dU = zero(U)
