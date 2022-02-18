@@ -18,7 +18,7 @@ end
     pile.D .= D
     pile.E .= E
     pile.I .= I
-    pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k_h*y;
+    pile.pycurve = pycurve(y, z) = z > 19 ? 0 : k_h*y;
     pile.Fext[1] = H
     solve!(pile)
     deflection(z) = deflection_chang(H, D, E, I, k_h, 1, 19-z)
@@ -35,7 +35,7 @@ end
         pile.D .= 0.5
         pile.Fext[1] = 1000.0
         k = 2000
-        pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k*y^0.5
+        pile.pycurve = pycurve(y, z) = z > 19 ? 0 : k*y^0.5
         solve!(pile)
         @test log10(pile.u[1]) ≈ 0.1536   atol = 1e-2
         @test log10(pile.u[26]) ≈ -0.0529 atol = 1e-2
@@ -50,7 +50,7 @@ end
         pile.D .= 0.5
         pile.Fext[1] = 1000
         k = 2000
-        pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k*(19-z)*y^0.5
+        pile.pycurve = pycurve(y, z) = z > 19 ? 0 : k*(19-z)*y^0.5
         solve!(pile)
         @test log10(pile.u[1]) ≈ 0.2391  atol = 1e-3
         @test log10(pile.u[6]) ≈ 0.0385  atol = 1e-3
