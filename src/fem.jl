@@ -166,34 +166,25 @@ function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F
 end
 
-function pycurve_wrapper(pycurve, y, z)
-    if y == 0
-        p = pycurve(y, z)
-        return p == 0 ? zero(p) : p
-    else
-        return pycurve(abs(y), z) * sign(y)
-    end
+function pycurve_wrapper(pycurve, y::T, z)::T where {T <: Real}
+    p::T = pycurve(abs(y), z)
+    ifelse(iszero(p), zero(p), p * sign(y))
 end
 
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
     P = similar(U)
     Z = model.coordinates
-    for beam in model
-        inds = beam.inds
-        Fint[inds] += stiffness_matrix(beam) * U[inds]
-    end
     for i in 1:length(Z)
         ind = 2(i-1) + 1
         y = U[ind]
         z = Z[i]
         D = model.D[i]
-        P[ind] = pycurve_wrapper(model.pycurve, y, z)
-        P[ind] *= D
+        P[ind] = pycurve_wrapper(model.pycurve, y, z) * D
         P[ind+1] = 0
     end
     for beam in model
         inds = beam.inds
-        Fint[inds] += mass_matrix(beam) * P[inds]
+        Fint[inds] += stiffness_matrix(beam) * U[inds] + mass_matrix(beam) * P[inds]
     end
 end
 
@@ -309,7 +300,7 @@ julia> pile = FEPileModel(0, 10, 50);
 julia> pile.E .= 2e8;
 julia> pile.D .= 0.6;
 julia> pile.I .= 0.0002507;
-julia> pile.pycurves .= pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
+julia> pile.pycurve = pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
 julia> pile.Fext[1] = 10;
 julia> solve!(pile);
 julia> plot(pile)

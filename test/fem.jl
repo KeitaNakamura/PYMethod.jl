@@ -27,7 +27,7 @@ end
     end
 end
 
-@testset "FEM: Unlinear spring" begin
+@testset "FEM: Nonlinear spring" begin
     @testset "not depending on depth" begin
         pile = FEPileModel(0, 20, 500)
         pile.E .= 1.0e7
