@@ -55,7 +55,7 @@ Construct mass matrix from `Beam`.
 """
 mass_matrix(beam::Beam) = mass_matrix(beam.l)
 
-mutable struct FEPileModel{T} <: AbstractVector{Beam{T}}
+struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
     # global vectors
     U::FEMVector{T}
@@ -65,8 +65,8 @@ mutable struct FEPileModel{T} <: AbstractVector{Beam{T}}
     E::Vector{T}
     I::Vector{T}
     D::Vector{T}
-    # p-y curve
-    pycurve::Any
+    # p-y curves
+    pycurves::Vector{Any}
     # sparsity pattern
     spat::SparseMatrixCSC{T, Int}
 end
@@ -114,9 +114,10 @@ function FEPileModel(bottom::Real, top::Real, nelements::Int)
     Eᵢ = zeros(T, n)
     Iᵢ = zeros(T, n)
     Dᵢ = zeros(T, n)
-    # p-y curve
-    pycurve = pycurve(y, z) = zero(T)
-    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurve, sparsity_pattern(T, n-1))
+    # p-y curves
+    pycurves = Vector{Any}(undef, n)
+    pycurves .= (pycurve(y, z) = zero(T))
+    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
@@ -181,7 +182,7 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
         y = U[ind]
         z = Z[i]
         D = model.D[i]
-        P[ind] = pycurve_wrapper(model.pycurve, y, z) * D
+        P[ind] = pycurve_wrapper(model.pycurves[i], y, z) * D
         P[ind+1] = 0
     end
     for beam in model
@@ -267,12 +268,11 @@ end
 
 function solve_disp_load(model::FEPileModel; fixbottom::Bool = true)
     pile = deepcopy(model)
-    clear_boundary_conditions!(pile)
     disp = Float64[]
     load = Float64[]
     for i in 1:50
-        pile.U = model.U / 50 * i
-        pile.Bext = model.Bext / 50 * i
+        @. pile.U.data = model.U / 50 * i
+        @. pile.Bext = model.Bext / 50 * i
         solve!(pile; fixbottom)
         push!(disp, pile.u[1])
         push!(load, pile.Fext[1])
@@ -284,7 +284,7 @@ end
     clear_boundary_conditions!(::FEPileModel)
 
 Clear boundary conditions.
-The parameters and p-y curve are remained.
+The parameters and p-y curves are remained.
 """
 function clear_boundary_conditions!(model::FEPileModel)
     reset!(model.U)
