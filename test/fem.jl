@@ -71,7 +71,7 @@ end
     pile.D .= D
     pile.E .= E
     pile.I .= I
-    pile.pycurve = pycurve(y, z) = k_h * y;
+    pile.pycurves .= pycurve(y, z) = k_h * y;
     pile.Fext[1] = H
     disp, load = solve_disp_load(pile)
     for (d, f) in zip(disp, load)

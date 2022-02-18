@@ -268,12 +268,11 @@ end
 
 function solve_disp_load(model::FEPileModel; fixbottom::Bool = true)
     pile = deepcopy(model)
-    clear_boundary_conditions!(pile)
     disp = Float64[]
     load = Float64[]
     for i in 1:50
-        pile.U = model.U / 50 * i
-        pile.Bext = model.Bext / 50 * i
+        @. pile.U.data = model.U / 50 * i
+        @. pile.Bext = model.Bext / 50 * i
         solve!(pile; fixbottom)
         push!(disp, pile.u[1])
         push!(load, pile.Fext[1])
