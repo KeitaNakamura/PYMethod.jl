@@ -100,18 +100,18 @@ pile.Fext[1] = 100
 nothing # hide
 ```
 
-### STEP 4: Setup p-y curve
+### STEP 4: Setup p-y curves
 
-* `pile.pycurve`: `pycurve(y, z) -> p`
+* `pile.pycurves`: `pycurve(y, z) -> p`
 
-P-y curve also needs to be setup on nodes.
+P-y curves also needs to be setup on each nodes.
 The object must be the function which has the lateral displacement `y` and
 vertical coordinate `z` as arguments and returns the earth pressure `p`.
 `pycurve(y, z) = 0` is used by default.
 
 ```@example pile
 k = 50e3
-pile.pycurve = pycurve(y, z) = z > 19 ? 0 : k*y
+pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k*y
 nothing # hide
 ```
 
