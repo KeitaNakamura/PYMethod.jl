@@ -7,6 +7,8 @@ FEMVector{T}(n::Int) where {T} = FEMVector(zeros(T, n), falses(n))
 Base.parent(x::FEMVector) = x.data
 Base.size(x::FEMVector) = size(x.data)
 Base.getindex(x::FEMVector, i::Int) = (@_propagate_inbounds_meta; x.data[i])
+Base.:/(x::FEMVector, a::Real) = FEMVector(x.data/a, x.mask)
+Base.:*(x::FEMVector, a::Real) = FEMVector(x.data*a, x.mask)
 function Base.setindex!(x::FEMVector, v, i::Int)
     @_propagate_inbounds_meta
     x.data[i] = v
@@ -261,6 +263,21 @@ function solve!(model::FEPileModel{T}; fixbottom::Bool = true) where {T}
 
     Bext .= Fint
     residuals
+end
+
+function solve_disp_load(model::FEPileModel; fixbottom::Bool = true)
+    pile = deepcopy(model)
+    clear_boundary_conditions!(pile)
+    disp = Float64[]
+    load = Float64[]
+    for i in 1:50
+        pile.U = model.U / 50 * i
+        pile.Bext = model.Bext / 50 * i
+        solve!(pile; fixbottom)
+        push!(disp, pile.u[1])
+        push!(load, pile.Fext[1])
+    end
+    disp, load
 end
 
 """

@@ -9,7 +9,8 @@ using Base: @_propagate_inbounds_meta
 export
     ChangEquation,
     FEPileModel,
-    solve!
+    solve!,
+    solve_disp_load
 
 fillzero!(x) = fill!(x, zero(eltype(x)))
 

@@ -59,3 +59,22 @@ end
         @test log10(maximum(abs, pile.M)) ≈ 3.3128  atol = 1e-3
     end
 end
+
+@testset "solve_disp_load" begin
+    # compare with Chang's equation
+    pile = FEPileModel(0, 19, 400)
+    D = 0.6
+    E = 2e8
+    I = 0.0002507
+    k_h = 3750
+    H = 10
+    pile.D .= D
+    pile.E .= E
+    pile.I .= I
+    pile.pycurve = pycurve(y, z) = k_h * y;
+    pile.Fext[1] = H
+    disp, load = solve_disp_load(pile)
+    for (d, f) in zip(disp, load)
+        @test d ≈ deflection_chang(f, D, E, I, k_h, 0, 0)  atol = 1e-6
+    end
+end
