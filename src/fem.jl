@@ -68,8 +68,14 @@ function mass_matrix(l::Real)
                13l^2/420   -l^3/140  11l^2/210   l^3/105]
 end
 
+if VERSION < v"1.7"
+    const LinearRange{T} = LinRange{T}
+else
+    const LinearRange{T} = LinRange{T, Int}
+end
+
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
-    depth::LinRange{T}
+    depth::LinearRange{T}
     # global vectors and matrix
     U::FEMVector{T}
     Bext::Vector{T}
@@ -163,14 +169,14 @@ end
 @generated Base.propertynames(model::FEPileModel) =
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
-Base.size(model::FEPileModel) = (length(model.depth)-1,)
-function Base.getindex(model::FEPileModel, el::Int)
+Base.size(model::FEPileModel) = (length(getfield(model, :depth))-1,)
+function Base.getindex(model::FEPileModel{T}, el::Int) where {T}
     @boundscheck checkbounds(model, el)
     Z = model.depth
     l = Z[el+1] - Z[el]
     E = (model.E[el] + model.E[el+1]) / 2
     I = (model.I[el] + model.I[el+1]) / 2
-    Beam(el, l, E, I)
+    Beam{T}(el, l, E, I)
 end
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
