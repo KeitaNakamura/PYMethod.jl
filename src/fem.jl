@@ -74,7 +74,7 @@ else
     const LinearRange{T} = LinRange{T, Int}
 end
 
-struct FEPileModel{T} <: AbstractVector{Beam{T}}
+struct FEPile{T} <: AbstractVector{Beam{T}}
     depth::LinearRange{T}
     # global vectors and matrix
     U::FEMVector{T}
@@ -90,7 +90,7 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     spat::SparseMatrixCSC{T, Int}
 end
 
-function FEPileModel(depth::LinRange{T}) where {T}
+function FEPile(depth::LinRange{T}) where {T}
     n = length(depth)
     ndofs = n * 2 # one direction, TODO: handle two directions
 
@@ -108,11 +108,11 @@ function FEPileModel(depth::LinRange{T}) where {T}
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
 
-    FEPileModel(depth, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
+    FEPile(depth, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 """
-    FEPileModel(top::Real, bottom::Real, nelements::Int) -> pile
+    FEPile(top::Real, bottom::Real, nelements::Int) -> pile
 
 Construct an object of the finite element model to simulate lateral behavior of pile.
 The `i`th `Beam` element can be accessed by `pile[i]`.
@@ -141,12 +141,12 @@ The above vectors will be updated after `solve!` the problem.
 
 The internal lateral force and moment vectors will be updated after `solve!` the problem.
 """
-function FEPileModel(top::Real, bottom::Real, nelements::Int)
+function FEPile(top::Real, bottom::Real, nelements::Int)
     @assert top < bottom
-    FEPileModel(LinRange(top, bottom, nelements + 1))
+    FEPile(LinRange(top, bottom, nelements + 1))
 end
 
-function Base.getproperty(model::FEPileModel, name::Symbol)
+function Base.getproperty(model::FEPile, name::Symbol)
     U = getfield(model, :U)
     Bext = getfield(model, :Bext)
     if name == :u
@@ -166,11 +166,11 @@ function Base.getproperty(model::FEPileModel, name::Symbol)
     end
 end
 
-@generated Base.propertynames(model::FEPileModel) =
+@generated Base.propertynames(model::FEPile) =
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
-Base.size(model::FEPileModel) = (length(getfield(model, :depth))-1,)
-function Base.getindex(model::FEPileModel{T}, el::Int) where {T}
+Base.size(model::FEPile) = (length(getfield(model, :depth))-1,)
+function Base.getindex(model::FEPile{T}, el::Int) where {T}
     @boundscheck checkbounds(model, el)
     Z = model.depth
     l = Z[el+1] - Z[el]
@@ -179,7 +179,7 @@ function Base.getindex(model::FEPileModel{T}, el::Int) where {T}
     Beam{T}(el, l, E, I)
 end
 
-function internal_force(model::FEPileModel{T}, id::Int) where {T}
+function internal_force(model::FEPile{T}, id::Int) where {T}
     F = Vector{T}(undef, length(model)+1)
     for i in 1:length(model)
         beam = model[i]
@@ -199,7 +199,7 @@ function pycurve_wrapper(pycurve, y::T, z)::T where {T <: Real}
     ifelse(iszero(p), zero(p), p * sign(y))
 end
 
-function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
+function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPile)
     P = similar(U)
     Z = model.depth
     for i in 1:length(Z)
@@ -241,11 +241,11 @@ function copytospmat!(dest::SparseMatrixCSC, src::AbstractMatrix)
 end
 
 """
-    solve!(::FEPileModel)
+    solve!(::FEPile)
 
 Solve the finite element problem.
 """
-function solve!(model::FEPileModel{T}; fixbottom::Bool = true) where {T}
+function solve!(model::FEPile{T}; fixbottom::Bool = true) where {T}
     U = parent(model.U)
     K = model.K
     Bext = model.Bext
@@ -290,7 +290,7 @@ function solve!(model::FEPileModel{T}; fixbottom::Bool = true) where {T}
     residuals
 end
 
-function solve_deflection_load(model::FEPileModel; fixbottom::Bool = true)
+function solve_deflection_load(model::FEPile; fixbottom::Bool = true)
     pile = deepcopy(model)
     defl = Float64[]
     load = Float64[]
@@ -305,18 +305,18 @@ function solve_deflection_load(model::FEPileModel; fixbottom::Bool = true)
 end
 
 """
-    clear_boundary_conditions!(::FEPileModel)
+    clear_boundary_conditions!(::FEPile)
 
 Clear boundary conditions.
 The parameters and p-y curves are remained.
 """
-function clear_boundary_conditions!(model::FEPileModel)
+function clear_boundary_conditions!(model::FEPile)
     reset!(model.U)
     fillzero!(model.Bext)
     model
 end
 
-@recipe function f(model::FEPileModel)
+@recipe function f(model::FEPile)
     label --> ""
     layout := (1, 3)
     yflip := true
@@ -342,7 +342,7 @@ end
 end
 
 #=
-julia> pile = FEPileModel(-2, 8, 50);
+julia> pile = FEPile(-2, 8, 50);
 julia> pile.E .= 2e8;
 julia> pile.D .= 0.6;
 julia> pile.I .= 0.0002507;

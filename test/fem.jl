@@ -9,7 +9,7 @@ end
 
 @testset "FEM: Linear spring" begin
     # compare with Chang's equation
-    pile = FEPileModel(-1, 19, 400)
+    pile = FEPile(-1, 19, 400)
     D = 0.6
     E = 2e8
     I = 0.0002507
@@ -29,7 +29,7 @@ end
 
 @testset "FEM: Nonlinear spring" begin
     @testset "not depending on depth" begin
-        pile = FEPileModel(-1, 19, 500)
+        pile = FEPile(-1, 19, 500)
         pile.E .= 1.0e7
         pile.I .= 1.0e-3
         pile.D .= 0.5
@@ -44,7 +44,7 @@ end
         @test log10(maximum(abs, pile.M)) ≈ 3.2055 atol = 1e-2
     end
     @testset "depending on depth" begin
-        pile = FEPileModel(-1, 19, 100)
+        pile = FEPile(-1, 19, 100)
         pile.E .= 1.0e7
         pile.I .= 1.0e-3
         pile.D .= 0.5
@@ -62,7 +62,7 @@ end
 
 @testset "solve_deflection_load" begin
     # compare with Chang's equation
-    pile = FEPileModel(0, 19, 400)
+    pile = FEPile(0, 19, 400)
     D = 0.6
     E = 2e8
     I = 0.0002507
