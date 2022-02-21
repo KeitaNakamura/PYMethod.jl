@@ -286,16 +286,16 @@ end
 
 function solve_deflection_load(model::FEPileModel; fixbottom::Bool = true)
     pile = deepcopy(model)
-    disp = Float64[]
+    defl = Float64[]
     load = Float64[]
     for i in 1:50
         @. pile.U.data = model.U / 50 * i
         @. pile.Bext = model.Bext / 50 * i
         solve!(pile; fixbottom)
-        push!(disp, pile.u[1])
+        push!(defl, pile.u[1])
         push!(load, pile.Fext[1])
     end
-    disp, load
+    defl, load
 end
 
 """
