@@ -57,7 +57,7 @@ If the length of pile is ``20\,\mathrm{m}`` and the embed depth is ``19\,\mathrm
 
 ```@example pile
 using PYMethod # hide
-pile = FEPileModel(-1, 19, 200)
+pile = FEPile(-1, 19, 200)
 nothing # hide
 ```
 

@@ -8,7 +8,7 @@ using Base: @_propagate_inbounds_meta
 
 export
     ChangEquation,
-    FEPileModel,
+    FEPile,
     solve!,
     solve_deflection_load
 
