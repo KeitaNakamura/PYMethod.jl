@@ -106,7 +106,7 @@ function FEPileModel(coordinates::LinRange{T}) where {T}
 end
 
 """
-    FEPileModel(bottom::Real, top::Real, nelements::Int) -> pile
+    FEPileModel(top::Real, bottom::Real, nelements::Int) -> pile
 
 Construct an object of the finite element model to simulate lateral behavior of pile.
 The `i`th `Beam` element can be accessed by `pile[i]`.
@@ -135,7 +135,8 @@ The above vectors will be updated after `solve!` the problem.
 
 The internal lateral force and moment vectors will be updated after `solve!` the problem.
 """
-function FEPileModel(bottom::Real, top::Real, nelements::Int)
+function FEPileModel(top::Real, bottom::Real, nelements::Int)
+    @assert top < bottom
     FEPileModel(LinRange(top, bottom, nelements + 1))
 end
 
@@ -169,7 +170,7 @@ function Base.getindex(model::FEPileModel, el::Int)
     l = Z[el+1] - Z[el]
     E = (model.E[el] + model.E[el+1]) / 2
     I = (model.I[el] + model.I[el+1]) / 2
-    Beam(el, abs(l), E, I)
+    Beam(el, l, E, I)
 end
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
@@ -334,11 +335,11 @@ end
 end
 
 #=
-julia> pile = FEPileModel(0, 10, 50);
+julia> pile = FEPileModel(-2, 8, 50);
 julia> pile.E .= 2e8;
 julia> pile.D .= 0.6;
 julia> pile.I .= 0.0002507;
-julia> pile.pycurves .= pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
+julia> pile.pycurves .= pycurve(y, z) = z < 0 ? 0 : 3750*z*y;
 julia> pile.Fext[1] = 10;
 julia> solve!(pile);
 julia> plot(pile)
