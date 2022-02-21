@@ -10,7 +10,7 @@ export
     ChangEquation,
     FEPileModel,
     solve!,
-    solve_disp_load
+    solve_deflection_load
 
 fillzero!(x) = fill!(x, zero(eltype(x)))
 
