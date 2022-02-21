@@ -49,20 +49,21 @@ K_{ij} = \int EI N''_i N''_j \mathrm{d}x,\quad M_{ij} = \int N_i N_j \mathrm{d}x
 
 ## How to simulate
 
-### STEP 1: Create pile object
+### STEP 1: Create FE-pile object
 
-If the bottom and top coordinates are ``0\,\mathrm{m}`` and ``20\,\mathrm{m}``, respectively,
-then the object can be constructed as
+In the simulation, downward direction must be positive for z-axis.
+We also set ``z=0`` to ground surface for simplicity.
+If the length of pile is ``20\,\mathrm{m}`` and the embed depth is ``19\,\mathrm{m}``, then the FE-pile object can be constructed as
 
 ```@example pile
 using PYMethod # hide
-pile = FEPileModel(0, 20, 200)
+pile = FEPileModel(-1, 19, 200)
 nothing # hide
 ```
 
-The last argument specifies the number of beam elements of the pile.
+The last argument `200` specifies the number of beam elements of the pile.
 Thus, every element has the length of ``0.1\,\mathrm{m}``.
-Check `pile.coordinates` for coordinates of all nodes.
+Check `pile.depth` for depths of all nodes.
 
 ### STEP 2: Initialize parameters
 
@@ -106,12 +107,12 @@ nothing # hide
 
 P-y curves also needs to be setup on each nodes.
 The object must be the function which has the lateral displacement `y` and
-vertical coordinate `z` as arguments and returns the earth pressure `p`.
+vertical coordinate `z` (positive downward) as arguments and returns the earth pressure `p`.
 `pycurve(y, z) = 0` is used by default.
 
 ```@example pile
 k = 50e3
-pile.pycurves .= pycurve(y, z) = z > 19 ? 0 : k*y
+pile.pycurves .= pycurve(y, z) = z < 0 ? 0 : k*y
 nothing # hide
 ```
 
@@ -126,7 +127,7 @@ pile.u
 
 ```@example pile
 using Plots
-eq = ChangEquation(0, 20; z_0 = 19, E = 2e11, I = 3.07e-7, D = 0.05, F_t = 100, k = 50e3)
+eq = ChangEquation(-1, 19; z_0 = 0, E = 2e11, I = 3.07e-7, D = 0.05, F_t = 100, k = 50e3)
 plot(pile; label = "FEM")
 plot!(eq; label = "Chang's equation")
 nothing # hide

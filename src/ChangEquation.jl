@@ -1,5 +1,5 @@
 """
-    ChangEquation(bottom, top; parameters...)
+    ChangEquation(top, bottom; parameters...)
 
 # Parameters
 * `z_0`: height of ground surface (`z_0 = 0` by default)
@@ -49,8 +49,8 @@ struct ChangEquation
     end
 end
 
-function ChangEquation(z_b::Real, z_t::Real; z_0::Real = 0, F_t::Real, M_t::Real = 0, D::Real, E::Real, I::Real, k::Real, head_free::Bool = true)
-    h = z_t - z_0
+function ChangEquation(z_t::Real, z_b::Real; z_0::Real = 0, F_t::Real, M_t::Real = 0, D::Real, E::Real, I::Real, k::Real, head_free::Bool = true)
+    h = z_0 - z_t
     if !head_free
         β = sqrt(sqrt(D*k / (4E*I)))
         ChangEquation(F_t, -(1+β*h)/2β*F_t, D, E, I, k, h, z_b, z_t, z_0)
@@ -62,20 +62,20 @@ end
 """
     calculate_deflection(::ChangEquation, z)
 
-Calculate deflection at height `z`.
+Calculate deflection at depth `z`.
 """
 function calculate_deflection(eq::ChangEquation, z::Real)
-    @assert eq.z_b ≤ z ≤ eq.z_t
+    @assert eq.z_t ≤ z ≤ eq.z_b
     E = eq.E
     I = eq.I
     β = eq.β
     if z > eq.z_0
-        x = -(z - eq.z_t)
-        eq.y_t - eq.θ_t*x + eq.M_t/(2E*I)*x^2 + eq.F_t/(6E*I)*x^3
-    else
-        x = -(z - eq.z_0)
+        x = z - eq.z_0
         h_0 = eq.h_0
         eq.F_t/(2E*I*β^3) * exp(-β*x) * ((1+β*h_0) * cos(β*x) - β*h_0*sin(β*x))
+    else
+        x = z - eq.z_t
+        eq.y_t - eq.θ_t*x + eq.M_t/(2E*I)*x^2 + eq.F_t/(6E*I)*x^3
     end
 end
 
@@ -85,16 +85,15 @@ end
 Calculate moment at height `z`.
 """
 function calculate_moment(eq::ChangEquation, z::Real)
-    @assert eq.z_b ≤ z ≤ eq.z_t
-    x = -(z - eq.z_0)
+    @assert eq.z_t ≤ z ≤ eq.z_b
     β = eq.β
     if z > eq.z_0
-        x = -(z - eq.z_t)
-        -eq.M_t - eq.F_t*x
-    else
-        x = -(z - eq.z_0)
+        x = z - eq.z_0
         h_0 = eq.h_0
         -eq.F_t/β * exp(-β*x) * (β*h_0*cos(β*x) + (1+β*h_0)*sin(β*x))
+    else
+        x = z - eq.z_t
+        -eq.M_t - eq.F_t*x
     end
 end
 
@@ -104,23 +103,22 @@ end
 Calculate shear force at height `z`.
 """
 function calculate_shearforce(eq::ChangEquation, z::Real)
-    @assert eq.z_b ≤ z ≤ eq.z_t
-    x = -(z - eq.z_0)
+    @assert eq.z_t ≤ z ≤ eq.z_b
     β = eq.β
     if z > eq.z_0
-        x = -(z - eq.z_t)
-        -eq.F_t
-    else
-        x = -(z - eq.z_0)
+        x = z - eq.z_0
         h_0 = eq.h_0
         -eq.F_t * exp(-β*x) * (cos(β*x) - (1+2β*h_0)*sin(β*x))
+    else
+        x = z - eq.z_t
+        -eq.F_t
     end
 end
 
 @recipe function f(eq::ChangEquation)
     label --> ""
     layout := (1, 3)
-    coords = LinRange(eq.z_b, eq.z_t, 1000)
+    coords = LinRange(eq.z_t, eq.z_b, 1000)
     u = calculate_deflection.(Ref(eq), coords)
     M = calculate_moment.(Ref(eq), coords)
     F = calculate_shearforce.(Ref(eq), coords)

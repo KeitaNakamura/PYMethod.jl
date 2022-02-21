@@ -69,7 +69,7 @@ function mass_matrix(l::Real)
 end
 
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
-    coordinates::LinRange{T}
+    depth::LinRange{T}
     # global vectors and matrix
     U::FEMVector{T}
     Bext::Vector{T}
@@ -84,8 +84,8 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     spat::SparseMatrixCSC{T, Int}
 end
 
-function FEPileModel(coordinates::LinRange{T}) where {T}
-    n = length(coordinates)
+function FEPileModel(depth::LinRange{T}) where {T}
+    n = length(depth)
     ndofs = n * 2 # one direction, TODO: handle two directions
 
     # global vectors and matrix
@@ -102,11 +102,11 @@ function FEPileModel(coordinates::LinRange{T}) where {T}
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
 
-    FEPileModel(coordinates, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
+    FEPileModel(depth, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 """
-    FEPileModel(bottom::Real, top::Real, nelements::Int) -> pile
+    FEPileModel(top::Real, bottom::Real, nelements::Int) -> pile
 
 Construct an object of the finite element model to simulate lateral behavior of pile.
 The `i`th `Beam` element can be accessed by `pile[i]`.
@@ -129,13 +129,14 @@ The above vectors will be updated after `solve!` the problem.
 
 # Nodal variables
 
-* `pile.coordinates`: Coordinates of nodes
+* `pile.depth`: Depth
 * `pile.F`: Internal lateral force
 * `pile.M`: Internal moment
 
 The internal lateral force and moment vectors will be updated after `solve!` the problem.
 """
-function FEPileModel(bottom::Real, top::Real, nelements::Int)
+function FEPileModel(top::Real, bottom::Real, nelements::Int)
+    @assert top < bottom
     FEPileModel(LinRange(top, bottom, nelements + 1))
 end
 
@@ -162,14 +163,14 @@ end
 @generated Base.propertynames(model::FEPileModel) =
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
-Base.size(model::FEPileModel) = (length(model.coordinates)-1,)
+Base.size(model::FEPileModel) = (length(model.depth)-1,)
 function Base.getindex(model::FEPileModel, el::Int)
     @boundscheck checkbounds(model, el)
-    Z = model.coordinates
+    Z = model.depth
     l = Z[el+1] - Z[el]
     E = (model.E[el] + model.E[el+1]) / 2
     I = (model.I[el] + model.I[el+1]) / 2
-    Beam(el, abs(l), E, I)
+    Beam(el, l, E, I)
 end
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
@@ -194,7 +195,7 @@ end
 
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
     P = similar(U)
-    Z = model.coordinates
+    Z = model.depth
     for i in 1:length(Z)
         dof = first(dofindices(i))
         y = U[dof]
@@ -285,16 +286,16 @@ end
 
 function solve_deflection_load(model::FEPileModel; fixbottom::Bool = true)
     pile = deepcopy(model)
-    disp = Float64[]
+    defl = Float64[]
     load = Float64[]
     for i in 1:50
         @. pile.U.data = model.U / 50 * i
         @. pile.Bext = model.Bext / 50 * i
         solve!(pile; fixbottom)
-        push!(disp, pile.u[1])
+        push!(defl, pile.u[1])
         push!(load, pile.Fext[1])
     end
-    disp, load
+    defl, load
 end
 
 """
@@ -312,33 +313,34 @@ end
 @recipe function f(model::FEPileModel)
     label --> ""
     layout := (1, 3)
+    yflip := true
     u = model.u
     M = model.M
     F = model.F
     @series begin
         subplot := 1
         xguide --> "Deflection"
-        yguide --> "Coordinate"
-        (u, model.coordinates)
+        yguide --> "Depth"
+        (u, model.depth)
     end
     @series begin
         subplot := 2
         xguide --> "Moment"
-        (M, model.coordinates)
+        (M, model.depth)
     end
     @series begin
         subplot := 3
         xguide --> "Shear force"
-        (F, model.coordinates)
+        (F, model.depth)
     end
 end
 
 #=
-julia> pile = FEPileModel(0, 10, 50);
+julia> pile = FEPileModel(-2, 8, 50);
 julia> pile.E .= 2e8;
 julia> pile.D .= 0.6;
 julia> pile.I .= 0.0002507;
-julia> pile.pycurves .= pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
+julia> pile.pycurves .= pycurve(y, z) = z < 0 ? 0 : 3750*z*y;
 julia> pile.Fext[1] = 10;
 julia> solve!(pile);
 julia> plot(pile)
@@ -389,5 +391,5 @@ julia> res = [ 1.06737867E+00
 julia> ys = [10, (8:-0.2:0)...]
 
 julia> plot(res*0.01, ys)
-julia> plot!(pile.u, pile.coordinates)
+julia> plot!(pile.u, pile.depth)
 =#
