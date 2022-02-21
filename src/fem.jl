@@ -69,7 +69,7 @@ function mass_matrix(l::Real)
 end
 
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
-    coordinates::LinRange{T}
+    depth::LinRange{T}
     # global vectors and matrix
     U::FEMVector{T}
     Bext::Vector{T}
@@ -84,8 +84,8 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     spat::SparseMatrixCSC{T, Int}
 end
 
-function FEPileModel(coordinates::LinRange{T}) where {T}
-    n = length(coordinates)
+function FEPileModel(depth::LinRange{T}) where {T}
+    n = length(depth)
     ndofs = n * 2 # one direction, TODO: handle two directions
 
     # global vectors and matrix
@@ -102,7 +102,7 @@ function FEPileModel(coordinates::LinRange{T}) where {T}
     pycurves = Vector{Any}(undef, n)
     pycurves .= (pycurve(y, z) = zero(T))
 
-    FEPileModel(coordinates, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
+    FEPileModel(depth, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 """
@@ -129,7 +129,7 @@ The above vectors will be updated after `solve!` the problem.
 
 # Nodal variables
 
-* `pile.coordinates`: Coordinates of nodes
+* `pile.depth`: Depth
 * `pile.F`: Internal lateral force
 * `pile.M`: Internal moment
 
@@ -163,10 +163,10 @@ end
 @generated Base.propertynames(model::FEPileModel) =
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
-Base.size(model::FEPileModel) = (length(model.coordinates)-1,)
+Base.size(model::FEPileModel) = (length(model.depth)-1,)
 function Base.getindex(model::FEPileModel, el::Int)
     @boundscheck checkbounds(model, el)
-    Z = model.coordinates
+    Z = model.depth
     l = Z[el+1] - Z[el]
     E = (model.E[el] + model.E[el+1]) / 2
     I = (model.I[el] + model.I[el+1]) / 2
@@ -195,7 +195,7 @@ end
 
 function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::FEPileModel)
     P = similar(U)
-    Z = model.coordinates
+    Z = model.depth
     for i in 1:length(Z)
         dof = first(dofindices(i))
         y = U[dof]
@@ -321,17 +321,17 @@ end
         subplot := 1
         xguide --> "Deflection"
         yguide --> "Depth"
-        (u, model.coordinates)
+        (u, model.depth)
     end
     @series begin
         subplot := 2
         xguide --> "Moment"
-        (M, model.coordinates)
+        (M, model.depth)
     end
     @series begin
         subplot := 3
         xguide --> "Shear force"
-        (F, model.coordinates)
+        (F, model.depth)
     end
 end
 
@@ -391,5 +391,5 @@ julia> res = [ 1.06737867E+00
 julia> ys = [10, (8:-0.2:0)...]
 
 julia> plot(res*0.01, ys)
-julia> plot!(pile.u, pile.coordinates)
+julia> plot!(pile.u, pile.depth)
 =#

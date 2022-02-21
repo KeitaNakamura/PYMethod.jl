@@ -23,7 +23,7 @@ end
     solve!(pile)
     deflection(z) = deflection_chang(H, D, E, I, k_h, 1, z)
     for i in 1:length(pile.u)
-        @test pile.u[i] ≈ deflection(pile.coordinates[i])  atol = 1e-4
+        @test pile.u[i] ≈ deflection(pile.depth[i])  atol = 1e-4
     end
 end
 

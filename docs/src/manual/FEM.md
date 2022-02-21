@@ -63,7 +63,7 @@ nothing # hide
 
 The last argument `200` specifies the number of beam elements of the pile.
 Thus, every element has the length of ``0.1\,\mathrm{m}``.
-Check `pile.coordinates` for coordinates of all nodes.
+Check `pile.depth` for depths of all nodes.
 
 ### STEP 2: Initialize parameters
 
