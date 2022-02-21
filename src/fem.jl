@@ -22,45 +22,58 @@ function reset!(x::FEMVector)
 end
 
 struct Beam{T}
-    inds::SVector{4, Int}
+    el::Int
     # constants
     l::T
     E::T
     I::T
 end
 
-function stiffness_matrix(l::Real, E::Real, I::Real)
-    E*I/l^3 * @SMatrix [ 12  6l   -12  6l
-                         6l  4l^2 -6l  2l^2
-                        -12 -6l    12 -6l
-                         6l  2l^2 -6l  4l^2]
+dofindices(x::Beam) = dofindices(x.el)
+
+"""
+    dofindices(el::Int)
+
+Return dof indices for element index `el`.
+"""
+function dofindices(el::Int)
+    @assert el > 0
+    start = 2(el-1) + 1
+    SVector{4,Int}(start:start+3)
 end
+
 """
     stiffness_matrix(::Beam)
 
 Construct element stiffness matrix from `Beam`.
 """
 stiffness_matrix(beam::Beam) = stiffness_matrix(beam.l, beam.E, beam.I)
-
-function mass_matrix(l::Real)
-    @SMatrix [ 13l/35    -11l^2/210   9l/70    13l^2/420
-              -11l^2/210    l^3/105 -13l^2/420  -l^3/140
-                9l/70    -13l^2/420  13l/35    11l^2/210
-               13l^2/420   -l^3/140  11l^2/210   l^3/105]
+function stiffness_matrix(l::Real, E::Real, I::Real)
+    E*I/l^3 * @SMatrix [ 12  6l   -12  6l
+                         6l  4l^2 -6l  2l^2
+                        -12 -6l    12 -6l
+                         6l  2l^2 -6l  4l^2]
 end
+
 """
     mass_matrix(::Beam)
 
 Construct mass matrix from `Beam`.
 """
 mass_matrix(beam::Beam) = mass_matrix(beam.l)
+function mass_matrix(l::Real)
+    @SMatrix [ 13l/35    -11l^2/210   9l/70    13l^2/420
+              -11l^2/210    l^3/105 -13l^2/420  -l^3/140
+                9l/70    -13l^2/420  13l/35    11l^2/210
+               13l^2/420   -l^3/140  11l^2/210   l^3/105]
+end
 
 struct FEPileModel{T} <: AbstractVector{Beam{T}}
     coordinates::LinRange{T}
-    # global vectors
+    # global vectors and matrix
     U::FEMVector{T}
-    K::Matrix{T}
     Bext::Vector{T}
+    K::Matrix{T}
     # parameters
     E::Vector{T}
     I::Vector{T}
@@ -69,6 +82,27 @@ struct FEPileModel{T} <: AbstractVector{Beam{T}}
     pycurves::Vector{Any}
     # sparsity pattern
     spat::SparseMatrixCSC{T, Int}
+end
+
+function FEPileModel(coordinates::LinRange{T}) where {T}
+    n = length(coordinates)
+    ndofs = n * 2 # one direction, TODO: handle two directions
+
+    # global vectors and matrix
+    U = FEMVector{T}(ndofs)    # including deflection and its angle
+    Bext = zeros(T, ndofs)     # including force and moment
+    K = zeros(T, ndofs, ndofs) # stiffness matrix
+
+    # parameters
+    Eᵢ = zeros(T, n)
+    Iᵢ = zeros(T, n)
+    Dᵢ = zeros(T, n)
+
+    # p-y curves
+    pycurves = Vector{Any}(undef, n)
+    pycurves .= (pycurve(y, z) = zero(T))
+
+    FEPileModel(coordinates, U, Bext, K, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
 end
 
 """
@@ -86,7 +120,7 @@ The following values are vectors storing each nodal value.
 
 # Boundary conditions
 
-* `pile.u`: Lateral displacement
+* `pile.u`: Deflection
 * `pile.θ`: Angle of deflection (where `θ` can be typed by `\\theta<tab>`)
 * `pile.Fext`: External lateral force
 * `pile.Mext`: External moment
@@ -102,22 +136,7 @@ The above vectors will be updated after `solve!` the problem.
 The internal lateral force and moment vectors will be updated after `solve!` the problem.
 """
 function FEPileModel(bottom::Real, top::Real, nelements::Int)
-    coords = LinRange(top, bottom, nelements + 1)
-    n = length(coords)
-    ndofs = n * 2 # one direction, TODO: handle two directions
-    T = eltype(coords)
-    # global vectors and matrix
-    U = FEMVector{T}(ndofs)
-    Bext = zeros(T, ndofs)
-    K = zeros(T, ndofs, ndofs)
-    # parameters
-    Eᵢ = zeros(T, n)
-    Iᵢ = zeros(T, n)
-    Dᵢ = zeros(T, n)
-    # p-y curves
-    pycurves = Vector{Any}(undef, n)
-    pycurves .= (pycurve(y, z) = zero(T))
-    FEPileModel(coords, U, K, Bext, Eᵢ, Iᵢ, Dᵢ, pycurves, sparsity_pattern(T, n-1))
+    FEPileModel(LinRange(top, bottom, nelements + 1))
 end
 
 function Base.getproperty(model::FEPileModel, name::Symbol)
@@ -144,22 +163,21 @@ end
     :(($(map(QuoteNode, fieldnames(model))...), :u, :θ, :Fext, :Mext, :F, :M))
 
 Base.size(model::FEPileModel) = (length(model.coordinates)-1,)
-function Base.getindex(model::FEPileModel, i::Int)
-    @boundscheck checkbounds(model, i)
+function Base.getindex(model::FEPileModel, el::Int)
+    @boundscheck checkbounds(model, el)
     Z = model.coordinates
-    l = Z[i+1] - Z[i]
-    E = mean(@view model.E[i:i+1])
-    I = mean(@view model.I[i:i+1])
-    ind = 2(i-1) + 1
-    Beam(SVector{4}(ind:ind+3), abs(l), E, I)
+    l = Z[el+1] - Z[el]
+    E = (model.E[el] + model.E[el+1]) / 2
+    I = (model.I[el] + model.I[el+1]) / 2
+    Beam(el, abs(l), E, I)
 end
 
 function internal_force(model::FEPileModel{T}, id::Int) where {T}
     F = Vector{T}(undef, length(model)+1)
     for i in 1:length(model)
         beam = model[i]
-        inds = beam.inds
-        Bext = stiffness_matrix(beam) * model.U[inds]
+        dofs = dofindices(beam)
+        Bext = stiffness_matrix(beam) * model.U[dofs]
         F_beam = Bext[id:2:end]
         F[i] = F_beam[1]
         if i == length(model)
@@ -178,16 +196,16 @@ function assemble_force_vector!(Fint::AbstractVector, U::AbstractVector, model::
     P = similar(U)
     Z = model.coordinates
     for i in 1:length(Z)
-        ind = 2(i-1) + 1
-        y = U[ind]
+        dof = first(dofindices(i))
+        y = U[dof]
         z = Z[i]
         D = model.D[i]
-        P[ind] = pycurve_wrapper(model.pycurves[i], y, z) * D
-        P[ind+1] = 0
+        P[dof] = pycurve_wrapper(model.pycurves[i], y, z) * D
+        P[dof+1] = 0
     end
     for beam in model
-        inds = beam.inds
-        Fint[inds] += stiffness_matrix(beam) * U[inds] + mass_matrix(beam) * P[inds]
+        dofs = dofindices(beam)
+        Fint[dofs] += stiffness_matrix(beam) * U[dofs] + mass_matrix(beam) * P[dofs]
     end
 end
 
@@ -195,9 +213,8 @@ function sparsity_pattern(::Type{T}, nelts::Int) where {T}
     ndofs = 2(nelts + 1)
     K = zeros(ndofs, ndofs)
     for i in 1:nelts
-        ind = 2(i-1) + 1
-        inds = ind:ind+3
-        K[inds, inds] .= one(T)
+        dofs = dofindices(i)
+        K[dofs, dofs] .= one(T)
     end
     sparse(K)
 end
@@ -321,7 +338,7 @@ julia> pile = FEPileModel(0, 10, 50);
 julia> pile.E .= 2e8;
 julia> pile.D .= 0.6;
 julia> pile.I .= 0.0002507;
-julia> pile.pycurve = pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
+julia> pile.pycurves .= pycurve(y, z) = z > 8 ? 0 : 3750*(8-z)*y;
 julia> pile.Fext[1] = 10;
 julia> solve!(pile);
 julia> plot(pile)
