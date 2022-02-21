@@ -283,7 +283,7 @@ function solve!(model::FEPileModel{T}; fixbottom::Bool = true) where {T}
     residuals
 end
 
-function solve_disp_load(model::FEPileModel; fixbottom::Bool = true)
+function solve_deflection_load(model::FEPileModel; fixbottom::Bool = true)
     pile = deepcopy(model)
     disp = Float64[]
     load = Float64[]

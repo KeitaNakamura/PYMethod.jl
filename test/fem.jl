@@ -60,7 +60,7 @@ end
     end
 end
 
-@testset "solve_disp_load" begin
+@testset "solve_deflection_load" begin
     # compare with Chang's equation
     pile = FEPileModel(0, 19, 400)
     D = 0.6
@@ -73,8 +73,8 @@ end
     pile.I .= I
     pile.pycurves .= pycurve(y, z) = k_h * y;
     pile.Fext[1] = H
-    disp, load = solve_disp_load(pile)
-    for (d, f) in zip(disp, load)
+    deflection, load = solve_deflection_load(pile)
+    for (d, f) in zip(deflection, load)
         @test d ≈ deflection_chang(f, D, E, I, k_h, 0, 0)  atol = 1e-6
     end
 end
