@@ -1,6 +1,6 @@
 module PYMethod
 
-using LinearAlgebra, Statistics, SparseArrays
+using LinearAlgebra, SparseArrays
 using StaticArrays, ForwardDiff
 using RecipesBase
 
