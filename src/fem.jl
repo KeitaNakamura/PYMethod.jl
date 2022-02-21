@@ -313,13 +313,14 @@ end
 @recipe function f(model::FEPileModel)
     label --> ""
     layout := (1, 3)
+    yflip := true
     u = model.u
     M = model.M
     F = model.F
     @series begin
         subplot := 1
         xguide --> "Deflection"
-        yguide --> "Coordinate"
+        yguide --> "Depth"
         (u, model.coordinates)
     end
     @series begin
