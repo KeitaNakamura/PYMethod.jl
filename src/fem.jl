@@ -245,7 +245,7 @@ end
 
 Solve the finite element problem.
 """
-function solve!(model::FEPile{T}; fixbottom::Bool = true) where {T}
+function solve!(model::FEPile; fixbottom::Bool = true)
     U = parent(model.U)
     K = model.K
     Bext = model.Bext
@@ -281,7 +281,8 @@ function solve!(model::FEPile{T}; fixbottom::Bool = true) where {T}
             end
         end
         push!(residuals, r)
-        r ≤ 1e-5 && (converged = true; break)
+        converged = iszero(r) || (r / first(residuals) < 1e-5)
+        converged && break
         copytospmat!(model.spat, K)
         dU[fdofs] = model.spat[fdofs, fdofs] \ -R[fdofs]
     end
