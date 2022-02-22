@@ -218,7 +218,7 @@ end
 
 function sparsity_pattern(::Type{T}, nelts::Int) where {T}
     ndofs = 2(nelts + 1)
-    K = zeros(ndofs, ndofs)
+    K = zeros(T, ndofs, ndofs)
     for i in 1:nelts
         dofs = dofindices(i)
         K[dofs, dofs] .= one(T)
@@ -228,7 +228,6 @@ end
 
 function copytospmat!(dest::SparseMatrixCSC, src::AbstractMatrix)
     @assert size(dest) == size(src)
-    dest .= 0
     rows = rowvals(dest)
     vals = nonzeros(dest)
     m, n = size(dest)
